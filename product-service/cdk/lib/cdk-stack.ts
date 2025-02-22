@@ -13,13 +13,12 @@ export class CdkStack extends cdk.Stack {
       runtime: lambda.Runtime.NODEJS_18_X, // Provide any supported Node.js runtime
       handler: "getProductsList",
       entry: '../lambdas/getProductsList.ts',
-      bundling: {
-        target: 'node18',
-        minify: true,
-        sourceMap: true,
-        externalModules: ['aws-sdk'], // Exclude aws-sdk from bundling
-        forceDockerBundling: false, // This will prefer local esbuild if available
-      },
+    });
+
+    const getProductsByIdFunction = new NodejsFunction(this, "GetProductsByIdFunction", {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: "getProductsById",
+      entry: '../lambdas/getProductsById.ts',
     });
 
     // Create API Gateway
@@ -34,6 +33,10 @@ export class CdkStack extends cdk.Stack {
     // Create products resource and GET method
     const products = api.root.addResource('products');
     products.addMethod('GET', new apigateway.LambdaIntegration(getProductsListFunction));
+
+    // Add GET /products/{productId} method
+    const product = products.addResource('{productId}');
+    product.addMethod('GET', new apigateway.LambdaIntegration(getProductsByIdFunction));
 
     // Output the API URL
     new cdk.CfnOutput(this, 'ApiUrl', {

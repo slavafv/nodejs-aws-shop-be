@@ -8,7 +8,10 @@
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
-    "cdk": "cdk"
+    "cdk": "cdk",
+    "deploy": "cdk deploy",
+    "fill-db": "ts-node src/scripts/db-fill.ts",
+    "post-deploy": "npm run deploy && npm run fill-db"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.147",

@@ -3,8 +3,8 @@ import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { products } from "../lambdas/mocks";
 
 const REGION = "eu-west-1";
-const PRODUCTS_TABLE = "AWS_SHOP_Products";
-const STOCKS_TABLE = "AWS_SHOP_Stocks";
+const PRODUCTS_TABLE = "AWS_SHOP_DB_Products";
+const STOCKS_TABLE = "AWS_SHOP_DB_Stocks";
 
 // Create the client
 const client = new DynamoDBClient({ region: REGION });
@@ -45,4 +45,11 @@ async function fillTables() {
   }
 }
 
-fillTables();
+// Call the function to execute it when this script is run
+// run `npm run fill-db`
+fillTables()
+  .then(() => console.log("Database population process complete"))
+  .catch(err => console.error("Failed to populate database:", err));
+
+// Export the function so it can be imported and used elsewhere if needed
+export { fillTables };

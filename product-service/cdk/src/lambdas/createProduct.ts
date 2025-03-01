@@ -1,6 +1,10 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda"
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb"
-import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb"
+import {
+  DynamoDBDocumentClient,
+  TransactWriteCommand,
+  TransactWriteCommandInput,
+} from "@aws-sdk/lib-dynamodb"
 import { v4 as uuidv4 } from "uuid"
 
 const client = new DynamoDBClient({})
@@ -70,29 +74,42 @@ export const createProduct = async (
     // Generate a unique ID for the new product
     const productId = uuidv4()
 
-    // Create the product in the products table
-    await dynamoDb.send(
-      new PutCommand({
-        TableName: productsTable,
-        Item: {
-          id: productId,
-          title: productData.title,
-          description: productData.description,
-          price: Number(productData.price),
+    // Create transaction input
+    const transactItems: TransactWriteCommandInput = {
+      TransactItems: [
+        {
+          // Create product record
+          Put: {
+            TableName: productsTable,
+            Item: {
+              id: productId,
+              title: productData.title,
+              description: productData.description,
+              price: Number(productData.price),
+            },
+            // Optional: Ensure the product doesn't already exist
+            ConditionExpression: "attribute_not_exists(id)",
+          },
         },
-      })
-    )
+        {
+          // Create stock record
+          Put: {
+            TableName: stocksTable,
+            Item: {
+              product_id: productId,
+              count: productData.count ? Number(productData.count) : 0,
+            },
+            // Optional: Ensure the stock doesn't already exist
+            ConditionExpression: "attribute_not_exists(product_id)",
+          },
+        },
+      ],
+    }
 
-    // Create the stock record in the stocks table
-    await dynamoDb.send(
-      new PutCommand({
-        TableName: stocksTable,
-        Item: {
-          product_id: productId,
-          count: productData.count || 0,
-        },
-      })
-    )
+    // Execute the transaction
+    await dynamoDb.send(new TransactWriteCommand(transactItems))
+    
+    console.log(`Successfully created product and stock with ID: ${productId}`)
 
     // Return the newly created product
     return {
@@ -105,22 +122,27 @@ export const createProduct = async (
         id: productId,
         title: productData.title,
         description: productData.description,
-        price: productData.price,
-        count: productData.count || 0,
+        price: Number(productData.price),
+        count: productData.count ? Number(productData.count) : 0,
       }),
     }
   } catch (error) {
     console.error("Error creating product:", error)
 
+    // Handle specific transaction errors
+    const errorMessage = error instanceof Error ? error.message : "Unknown error"
+    const statusCode = errorMessage.includes('TransactionCanceledException') ? 409 : 500
+
+
     return {
-      statusCode: 500,
+      statusCode,
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Credentials": true,
       },
       body: JSON.stringify({
         message: "Error creating product",
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: errorMessage,
       }),
     }
   }

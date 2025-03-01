@@ -2,11 +2,16 @@ import * as cdk from "aws-cdk-lib"
 import { Construct } from "constructs"
 import * as apigateway from "aws-cdk-lib/aws-apigateway"
 import * as lambda from "aws-cdk-lib/aws-lambda"
+import * as dynamodb from "aws-cdk-lib/aws-dynamodb"
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs"
 
 export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props)
+    
+    // Reference existing DynamoDB tables
+    const productsTable = dynamodb.Table.fromTableName(this, 'ProductsTable', 'products');
+    const stocksTable = dynamodb.Table.fromTableName(this, 'StocksTable', 'stocks');
 
     const getProductsListFunction = new NodejsFunction(
       this,
@@ -15,6 +20,10 @@ export class CdkStack extends cdk.Stack {
         runtime: lambda.Runtime.NODEJS_18_X,
         handler: "getProductsList",
         entry: "../lambdas/getProductsList.ts",
+        environment: {
+          PRODUCTS_TABLE: productsTable.tableName,
+          STOCKS_TABLE: stocksTable.tableName,
+        }
       }
     )
 
@@ -25,8 +34,18 @@ export class CdkStack extends cdk.Stack {
         runtime: lambda.Runtime.NODEJS_18_X,
         handler: "getProductsById",
         entry: "../lambdas/getProductsById.ts",
+        environment: {
+          PRODUCTS_TABLE: productsTable.tableName,
+          STOCKS_TABLE: stocksTable.tableName,
+        }
       }
     )
+    
+    // Grant the Lambda functions read access to the DynamoDB tables
+    productsTable.grantReadData(getProductsListFunction);
+    productsTable.grantReadData(getProductsByIdFunction);
+    stocksTable.grantReadData(getProductsListFunction);
+    stocksTable.grantReadData(getProductsByIdFunction);
 
     // Create API Gateway
     const api = new apigateway.RestApi(this, "ProductsApi", {

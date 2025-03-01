@@ -4,8 +4,8 @@ import { DynamoDBDocumentClient, ScanCommand, GetCommand } from "@aws-sdk/lib-dy
 
 const client = new DynamoDBClient({});
 const dynamoDb = DynamoDBDocumentClient.from(client);
-const productsTable = process.env.PRODUCTS_TABLE || 'products'
-const stocksTable = process.env.STOCKS_TABLE || 'stocks'
+const productsTable = process.env.PRODUCTS_TABLE
+const stocksTable = process.env.STOCKS_TABLE
 
 export const getProductsList = async (
   event: APIGatewayProxyEvent
@@ -54,7 +54,7 @@ export const getProductsList = async (
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Credentials": true,
       },
-      body: JSON.stringify({ message: "Internal server error", error: error.message }),
+      body: JSON.stringify({ message: "Internal server error", error: error instanceof Error ? error.message : error }),
     }
   }
 }

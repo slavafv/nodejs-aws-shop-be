@@ -4,8 +4,8 @@ import { DynamoDBDocumentClient, GetCommand } from "@aws-sdk/lib-dynamodb"
 
 const client = new DynamoDBClient({})
 const dynamoDb = DynamoDBDocumentClient.from(client)
-const productsTable = process.env.PRODUCTS_TABLE || 'products'
-const stocksTable = process.env.STOCKS_TABLE || 'stocks'
+const productsTable = process.env.PRODUCTS_TABLE
+const stocksTable = process.env.STOCKS_TABLE
 
 export const getProductsById = async (
   event: APIGatewayProxyEvent
@@ -29,10 +29,12 @@ export const getProductsById = async (
     }
 
     // Get the product from DynamoDB
-    const productResult = await dynamoDb.send(new GetCommand({
-      TableName: productsTable,
-      Key: { id: productId }
-    }))
+    const productResult = await dynamoDb.send(
+      new GetCommand({
+        TableName: productsTable,
+        Key: { id: productId },
+      })
+    )
 
     // Check if product exists
     if (!productResult.Item) {
@@ -51,15 +53,17 @@ export const getProductsById = async (
     const product = productResult.Item
 
     // Get stock information
-    const stockResult = await dynamoDb.send(new GetCommand({
-      TableName: stocksTable,
-      Key: { product_id: productId }
-    }))
+    const stockResult = await dynamoDb.send(
+      new GetCommand({
+        TableName: stocksTable,
+        Key: { product_id: productId },
+      })
+    )
 
     // Join product with stock information
     const joinedProduct = {
       ...product,
-      count: stockResult.Item ? stockResult.Item.count : 0
+      count: stockResult.Item ? stockResult.Item.count : 0,
     }
 
     console.log(`Found product: ${JSON.stringify(joinedProduct)}`)
@@ -73,7 +77,7 @@ export const getProductsById = async (
       body: JSON.stringify(joinedProduct),
     }
   } catch (error) {
-    console.error('Error fetching product by ID:', error)
+    console.error("Error fetching product by ID:", error)
     return {
       statusCode: 500,
       headers: {
@@ -82,7 +86,10 @@ export const getProductsById = async (
       },
       body: JSON.stringify({
         message: "Internal server error",
-        error: error.message,
+        body: JSON.stringify({
+          message: "Internal server error",
+          error: error instanceof Error ? error.message : error,
+        }),
       }),
     }
   }

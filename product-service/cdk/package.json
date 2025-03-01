@@ -9,7 +9,7 @@
     "watch": "tsc -w",
     "test": "jest",
     "cdk": "cdk",
-    "deploy": "cdk deploy",
+    "deploy": "npm run build && cdk deploy",
     "fill-db": "ts-node src/scripts/db-fill.ts",
     "post-deploy": "npm run deploy && npm run fill-db"
   },

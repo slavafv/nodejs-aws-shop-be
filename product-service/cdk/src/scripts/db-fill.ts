@@ -2,9 +2,9 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { products } from "../lambdas/mocks";
 
-const REGION = "eu-west-1";
-const PRODUCTS_TABLE = "AWS_SHOP_DB_Products";
-const STOCKS_TABLE = "AWS_SHOP_DB_Stocks";
+const REGION = process.env.REGION;
+const PRODUCTS_TABLE = process.env.PRODUCTS_TABLE;
+const STOCKS_TABLE = process.env.STOCKS_TABLE;
 
 // Create the client
 const client = new DynamoDBClient({ region: REGION });

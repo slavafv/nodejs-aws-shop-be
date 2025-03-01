@@ -8,10 +8,18 @@ import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs"
 export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props)
-    
+
     // Reference existing DynamoDB tables
-    const productsTable = dynamodb.Table.fromTableName(this, 'ProductsTable', 'products');
-    const stocksTable = dynamodb.Table.fromTableName(this, 'StocksTable', 'stocks');
+    const productsTable = dynamodb.Table.fromTableName(
+      this,
+      "ProductsTable",
+      process.env.PRODUCTS_TABLE ?? "AWS_SHOP_DB_Products"
+    )
+    const stocksTable = dynamodb.Table.fromTableName(
+      this,
+      "StocksTable",
+      process.env.STOCKS_TABLE ?? "AWS_SHOP_DB_Stocks"
+    )
 
     const getProductsListFunction = new NodejsFunction(
       this,
@@ -19,11 +27,12 @@ export class CdkStack extends cdk.Stack {
       {
         runtime: lambda.Runtime.NODEJS_18_X,
         handler: "getProductsList",
-        entry: "../lambdas/getProductsList.ts",
+        entry: "./src/lambdas/getProductsList.ts",
+        depsLockFilePath: require.resolve('../package.json'),
         environment: {
           PRODUCTS_TABLE: productsTable.tableName,
           STOCKS_TABLE: stocksTable.tableName,
-        }
+        },
       }
     )
 
@@ -33,19 +42,20 @@ export class CdkStack extends cdk.Stack {
       {
         runtime: lambda.Runtime.NODEJS_18_X,
         handler: "getProductsById",
-        entry: "../lambdas/getProductsById.ts",
+        entry: "./src/lambdas/getProductsById.ts",
+        depsLockFilePath: require.resolve('../package.json'),
         environment: {
           PRODUCTS_TABLE: productsTable.tableName,
           STOCKS_TABLE: stocksTable.tableName,
-        }
+        },
       }
     )
-    
+
     // Grant the Lambda functions read access to the DynamoDB tables
-    productsTable.grantReadData(getProductsListFunction);
-    productsTable.grantReadData(getProductsByIdFunction);
-    stocksTable.grantReadData(getProductsListFunction);
-    stocksTable.grantReadData(getProductsByIdFunction);
+    productsTable.grantReadData(getProductsListFunction)
+    productsTable.grantReadData(getProductsByIdFunction)
+    stocksTable.grantReadData(getProductsListFunction)
+    stocksTable.grantReadData(getProductsByIdFunction)
 
     // Create API Gateway
     const api = new apigateway.RestApi(this, "ProductsApi", {

@@ -1,12 +1,25 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda"
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb"
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb"
-import { v4 as uuidv4 } from 'uuid'
+import { v4 as uuidv4 } from "uuid"
 
 const client = new DynamoDBClient({})
 const dynamoDb = DynamoDBDocumentClient.from(client)
 const productsTable = process.env.PRODUCTS_TABLE
 const stocksTable = process.env.STOCKS_TABLE
+
+const validateProductData = (productData: ProductData) => {
+  return (
+    !productData.title ||
+    !productData.description ||
+    productData.price === undefined ||
+    typeof Number(productData.price) !== "number" ||
+    !(
+      productData.count === undefined ||
+      typeof Number(productData.price) === "number"
+    )
+  )
+}
 
 interface ProductData {
   title: string
@@ -19,8 +32,8 @@ export const createProduct = async (
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> => {
   try {
-    console.log('Creating new product with data:', event.body)
-    
+    console.log("Creating new product with data:", event.body)
+
     // Validate input
     if (!event.body) {
       return {
@@ -34,12 +47,13 @@ export const createProduct = async (
         }),
       }
     }
-    
+
     // Parse and validate the request body
     const productData: ProductData = JSON.parse(event.body)
-    
+    const invalidData = validateProductData(productData)
+
     // Basic validation for required fields
-    if (!productData.title || !productData.description || productData.price === undefined) {
+    if (invalidData) {
       return {
         statusCode: 400,
         headers: {
@@ -47,14 +61,15 @@ export const createProduct = async (
           "Access-Control-Allow-Credentials": true,
         },
         body: JSON.stringify({
-          message: "Missing required fields: title, description, and price are required",
+          message:
+            "Missing required fields: title, description, and price are required",
         }),
       }
     }
-    
+
     // Generate a unique ID for the new product
     const productId = uuidv4()
-    
+
     // Create the product in the products table
     await dynamoDb.send(
       new PutCommand({
@@ -63,11 +78,11 @@ export const createProduct = async (
           id: productId,
           title: productData.title,
           description: productData.description,
-          price: productData.price,
+          price: Number(productData.price),
         },
       })
     )
-    
+
     // Create the stock record in the stocks table
     await dynamoDb.send(
       new PutCommand({
@@ -78,7 +93,7 @@ export const createProduct = async (
         },
       })
     )
-    
+
     // Return the newly created product
     return {
       statusCode: 201,
@@ -95,8 +110,8 @@ export const createProduct = async (
       }),
     }
   } catch (error) {
-    console.error('Error creating product:', error)
-    
+    console.error("Error creating product:", error)
+
     return {
       statusCode: 500,
       headers: {

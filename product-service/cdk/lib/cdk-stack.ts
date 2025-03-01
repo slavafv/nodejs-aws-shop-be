@@ -51,11 +51,31 @@ export class CdkStack extends cdk.Stack {
       }
     )
 
+    // Create createProduct lambda function
+    const createProductFunction = new NodejsFunction(
+      this,
+      "CreateProductFunction",
+      {
+        runtime: lambda.Runtime.NODEJS_18_X,
+        handler: "createProduct",
+        entry: "./src/lambdas/createProduct.ts",
+        depsLockFilePath: require.resolve('../package.json'),
+        environment: {
+          PRODUCTS_TABLE: productsTable.tableName,
+          STOCKS_TABLE: stocksTable.tableName,
+        },
+      }
+    )
+
     // Grant the Lambda functions read access to the DynamoDB tables
     productsTable.grantReadData(getProductsListFunction)
     productsTable.grantReadData(getProductsByIdFunction)
     stocksTable.grantReadData(getProductsListFunction)
     stocksTable.grantReadData(getProductsByIdFunction)
+    
+    // Grant the createProduct function write access to the DynamoDB tables
+    productsTable.grantWriteData(createProductFunction)
+    stocksTable.grantWriteData(createProductFunction)
 
     // Create API Gateway
     const api = new apigateway.RestApi(this, "ProductsApi", {
@@ -95,6 +115,12 @@ export class CdkStack extends cdk.Stack {
     products.addMethod(
       "GET",
       new apigateway.LambdaIntegration(getProductsListFunction)
+    )
+    
+    // Create products POST method
+    products.addMethod(
+      "POST",
+      new apigateway.LambdaIntegration(createProductFunction)
     )
 
     // ================================================== //

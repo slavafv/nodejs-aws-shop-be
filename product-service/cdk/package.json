@@ -8,7 +8,10 @@
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
-    "cdk": "cdk"
+    "cdk": "cdk",
+    "deploy": "npm run build && cdk deploy",
+    "fill-db": "ts-node src/scripts/db-fill.ts",
+    "post-deploy": "npm run deploy && npm run fill-db"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.147",
@@ -23,6 +26,8 @@
     "typescript": "~5.6.3"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.758.0",
+    "@aws-sdk/lib-dynamodb": "^3.758.0",
     "aws-cdk-lib": "2.178.1",
     "constructs": "^10.0.0"
   }

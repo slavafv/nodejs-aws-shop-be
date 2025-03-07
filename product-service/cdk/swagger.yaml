@@ -20,6 +20,47 @@ paths:
                   $ref: '#/components/schemas/Product'
         '500':
           description: Internal server error
+    post:
+      summary: Create a new product
+      description: Creates a new product in the database
+      operationId: createProduct
+      requestBody:
+        description: Product object that needs to be added to the store
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - description
+                - price
+              properties:
+                title:
+                  type: string
+                  description: The name of the product
+                description:
+                  type: string
+                  description: Detailed description of the product
+                price:
+                  type: number
+                  format: float
+                  description: The price of the product
+                count:
+                  type: integer
+                  description: Number of products available in stock
+                  default: 0
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Invalid input
+        '500':
+          description: Internal server error
   /products/{productId}:
     get:
       summary: Get product by ID

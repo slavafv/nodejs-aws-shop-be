@@ -1,6 +1,6 @@
 import { S3Event } from 'aws-lambda';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
-import * as csv from 'csv-parser';
+import csvParser from 'csv-parser';
 import { Readable } from 'stream';
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION });
@@ -24,12 +24,12 @@ export const handler = async (event: S3Event): Promise<void> => {
       if (Body instanceof Readable) {
         // Process the CSV file
         await new Promise((resolve, reject) => {
-          Body.pipe(csv())
-            .on('data', (data) => {
+          Body.pipe(csvParser())
+            .on('data', (data: any) => {
               // Log each record
               console.log('Parsed record:', JSON.stringify(data));
             })
-            .on('error', (error) => {
+            .on('error', (error: any) => {
               console.error('Error parsing CSV:', error);
               reject(error);
             })

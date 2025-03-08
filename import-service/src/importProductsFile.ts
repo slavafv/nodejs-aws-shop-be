@@ -2,8 +2,6 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-const s3Client = new S3Client({ region: process.env.AWS_REGION });
-
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Credentials': true,
@@ -25,6 +23,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
   }
 
   try {
+    const s3Client = new S3Client({ region: process.env.AWS_REGION });
     const fileName = event.queryStringParameters?.name;
 
     if (!fileName) {

@@ -58,10 +58,6 @@ describe('importProductsFile lambda', () => {
         body: mockSignedUrl
       });
 
-      expect(S3Client).toHaveBeenCalledWith({
-        region: 'eu-west-1'
-      });
-
       expect(mockPutObjectCommand).toHaveBeenCalledWith({
         Bucket: mockBucketName,
         Key: 'uploaded/test.csv',

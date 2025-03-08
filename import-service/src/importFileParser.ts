@@ -1,5 +1,5 @@
 import { S3Event } from 'aws-lambda';
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import csvParser from 'csv-parser';
 import { Readable } from 'stream';
 
@@ -25,17 +25,43 @@ export const handler = async (event: S3Event): Promise<void> => {
         // Process the CSV file
         await new Promise((resolve, reject) => {
           Body.pipe(csvParser())
-            .on('data', (data: any) => {
-              // Log each record
+            .on('data', (data) => {
               console.log('Parsed record:', JSON.stringify(data));
             })
-            .on('error', (error: any) => {
+            .on('error', (error) => {
               console.error('Error parsing CSV:', error);
               reject(error);
             })
-            .on('end', () => {
-              console.log('Finished processing CSV file');
-              resolve(null);
+            .on('end', async () => {
+              try {
+                // Generate the new key for parsed folder
+                const newKey = key.replace('uploaded/', 'parsed/');
+
+                // Copy the file to parsed folder
+                await s3Client.send(
+                  new CopyObjectCommand({
+                    Bucket: bucket,
+                    CopySource: `${bucket}/${key}`,
+                    Key: newKey,
+                  })
+                );
+
+                console.log(`File copied to: ${newKey}`);
+
+                // Delete the file from uploaded folder
+                await s3Client.send(
+                  new DeleteObjectCommand({
+                    Bucket: bucket,
+                    Key: key,
+                  })
+                );
+
+                console.log(`Original file deleted: ${key}`);
+                resolve(null);
+              } catch (error) {
+                console.error('Error moving file:', error);
+                reject(error);
+              }
             });
         });
       } else {

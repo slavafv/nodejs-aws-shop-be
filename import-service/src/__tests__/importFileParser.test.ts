@@ -33,7 +33,7 @@ describe('importFileParser lambda', () => {
     // Mock S3 GetObjectCommand response
     s3ClientMock
       .on(GetObjectCommand).resolves({
-        Body: mockStream
+        Body: mockStream as any
       })
       .on(CopyObjectCommand).resolves({})
       .on(DeleteObjectCommand).resolves({});

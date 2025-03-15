@@ -1,6 +1,8 @@
 import * as cdk from "aws-cdk-lib"
 import { Construct } from "constructs"
 import * as apigateway from "aws-cdk-lib/aws-apigateway"
+import * as sns from 'aws-cdk-lib/aws-sns';
+import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import * as lambda from "aws-cdk-lib/aws-lambda"
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb"
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs"
@@ -10,6 +12,16 @@ import * as lambdaEventSources from "aws-cdk-lib/aws-lambda-event-sources"
 export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props)
+
+    // Create SNS Topic
+    const createProductTopic = new sns.Topic(this, 'CreateProductTopic', {
+      displayName: 'Product Creation Notifications'
+    });
+
+     // Add email subscription
+     createProductTopic.addSubscription(
+      new subscriptions.EmailSubscription('s.fomin@softteco.com')
+    );
 
     // Reference existing DynamoDB tables
     const productsTable = dynamodb.Table.fromTableName(
@@ -88,6 +100,7 @@ export class CdkStack extends cdk.Stack {
         environment: {
           PRODUCTS_TABLE: productsTable.tableName,
           STOCKS_TABLE: stocksTable.tableName,
+          SNS_TOPIC_ARN: createProductTopic.topicArn,
         },
         bundling: {
           minify: true,
@@ -96,6 +109,9 @@ export class CdkStack extends cdk.Stack {
         },
       }
     )
+
+    // Grant Lambda permissions to publish to SNS
+    createProductTopic.grantPublish(catalogBatchProcess);
 
     // Add SQS trigger to Lambda
     catalogBatchProcess.addEventSource(

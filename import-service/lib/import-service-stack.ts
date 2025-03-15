@@ -12,43 +12,47 @@ export class ImportServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props)
 
-    // Create S3 bucket for file uploads
-    const bucket = new s3.Bucket(this, "slava-s3-bucket", {
-      cors: [
-        {
-          allowedMethods: [
-            s3.HttpMethods.GET,
-            s3.HttpMethods.PUT,
-            s3.HttpMethods.POST,
-            s3.HttpMethods.DELETE,
-            s3.HttpMethods.HEAD,
-          ],
-          allowedOrigins: ["*"],
-          allowedHeaders: ["*"],
-          exposedHeaders: [
-            "ETag",
-            "x-amz-server-side-encryption",
-            "x-amz-request-id",
-            "x-amz-id-2",
-          ],
-        },
-      ],
-    })
+    // Reference existing S3 bucket
+    const bucket = s3.Bucket.fromBucketName(
+      this,
+      "ImportBucket",
+      "slava-s3-bucket-1"
+    )
+
+    // // Create S3 bucket for file uploads
+    // const bucket = new s3.Bucket(this, "slava-s3-bucket", {
+    //   cors: [
+    //     {
+    //       allowedMethods: [
+    //         s3.HttpMethods.GET,
+    //         s3.HttpMethods.PUT,
+    //         s3.HttpMethods.POST,
+    //         s3.HttpMethods.DELETE,
+    //         s3.HttpMethods.HEAD,
+    //       ],
+    //       allowedOrigins: ["*"],
+    //       allowedHeaders: ["*"],
+    //       exposedHeaders: [
+    //         "ETag",
+    //         "x-amz-server-side-encryption",
+    //         "x-amz-request-id",
+    //         "x-amz-id-2",
+    //       ],
+    //     },
+    //   ],
+    //   removalPolicy: cdk.RemovalPolicy.DESTROY,
+    //   autoDeleteObjects: true,
+    // })
 
     // Create Lambda function using NodejsFunction
     const importProductsFile = new NodejsFunction(this, "ImportProductsFile", {
       runtime: cdk.aws_lambda.Runtime.NODEJS_18_X,
-      depsLockFilePath: require.resolve('../package.json'),
       handler: "handler",
       entry: path.join(__dirname, "../src/importProductsFile.ts"),
       environment: {
         BUCKET_NAME: bucket.bucketName,
+        REGION: this.region,
       },
-      // bundling: {
-      //   minify: true,
-      //   sourceMap: true,
-      //   externalModules: ['aws-sdk'],
-      // },
     })
 
     // Add explicit S3 permissions
@@ -62,17 +66,12 @@ export class ImportServiceStack extends cdk.Stack {
     // Create importFileParser Lambda
     const importFileParser = new NodejsFunction(this, "ImportFileParser", {
       runtime: lambda.Runtime.NODEJS_18_X,
-      depsLockFilePath: require.resolve('../package.json'),
       handler: "handler",
       entry: path.join(__dirname, "../src/importFileParser.ts"),
       environment: {
         BUCKET_NAME: bucket.bucketName,
+        REGION: this.region,
       },
-      // bundling: {
-      //   minify: true,
-      //   sourceMap: true,
-      //   externalModules: ['aws-sdk'],
-      // },
       timeout: cdk.Duration.seconds(60), // Increase timeout for file processing
     })
 

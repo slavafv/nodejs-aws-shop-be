@@ -28,7 +28,7 @@ export class CdkStack extends cdk.Stack {
         runtime: lambda.Runtime.NODEJS_18_X,
         handler: "getProductsList",
         entry: "./src/lambdas/getProductsList.ts",
-        depsLockFilePath: require.resolve('../package.json'),
+        // depsLockFilePath: require.resolve("../package-lock.json"),
         environment: {
           PRODUCTS_TABLE: productsTable.tableName,
           STOCKS_TABLE: stocksTable.tableName,
@@ -43,7 +43,7 @@ export class CdkStack extends cdk.Stack {
         runtime: lambda.Runtime.NODEJS_18_X,
         handler: "getProductsById",
         entry: "./src/lambdas/getProductsById.ts",
-        depsLockFilePath: require.resolve('../package.json'),
+        // depsLockFilePath: require.resolve("../package-lock.json"),
         environment: {
           PRODUCTS_TABLE: productsTable.tableName,
           STOCKS_TABLE: stocksTable.tableName,
@@ -59,7 +59,7 @@ export class CdkStack extends cdk.Stack {
         runtime: lambda.Runtime.NODEJS_18_X,
         handler: "createProduct",
         entry: "./src/lambdas/createProduct.ts",
-        depsLockFilePath: require.resolve('../package.json'),
+        // depsLockFilePath: require.resolve("../package-lock.json"),
         environment: {
           PRODUCTS_TABLE: productsTable.tableName,
           STOCKS_TABLE: stocksTable.tableName,
@@ -72,7 +72,7 @@ export class CdkStack extends cdk.Stack {
     productsTable.grantReadData(getProductsByIdFunction)
     stocksTable.grantReadData(getProductsListFunction)
     stocksTable.grantReadData(getProductsByIdFunction)
-    
+
     // Grant the createProduct function write access to the DynamoDB tables
     productsTable.grantWriteData(createProductFunction)
     stocksTable.grantWriteData(createProductFunction)
@@ -116,7 +116,7 @@ export class CdkStack extends cdk.Stack {
       "GET",
       new apigateway.LambdaIntegration(getProductsListFunction)
     )
-    
+
     // Create products POST method
     products.addMethod(
       "POST",

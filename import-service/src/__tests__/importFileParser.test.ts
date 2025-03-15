@@ -50,14 +50,14 @@ describe('importFileParser lambda', () => {
     // Verify GetObjectCommand
     const getObjectCall = s3ClientMock.commandCalls(GetObjectCommand)[0];
     expect(getObjectCall.args[0].input).toEqual({
-      Bucket: 'XXXXXXXXXXX',
+      Bucket: 'test-bucket',
       Key: 'uploaded/test.csv'
     });
 
     // Verify CopyObjectCommand
     const copyObjectCall = s3ClientMock.commandCalls(CopyObjectCommand)[0];
     expect(copyObjectCall.args[0].input).toEqual({
-      Bucket: 'XXXXXXXXXXX',
+      Bucket: 'test-bucket',
       CopySource: 'test-bucket/uploaded/test.csv',
       Key: 'parsed/test.csv'
     });
@@ -65,7 +65,7 @@ describe('importFileParser lambda', () => {
     // Verify DeleteObjectCommand
     const deleteObjectCall = s3ClientMock.commandCalls(DeleteObjectCommand)[0];
     expect(deleteObjectCall.args[0].input).toEqual({
-      Bucket: 'XXXXXXXXXXX',
+      Bucket: 'test-bucket',
       Key: 'uploaded/test.csv'
     });
 

@@ -2,6 +2,7 @@ import * as cdk from "aws-cdk-lib"
 import { Construct } from "constructs"
 import * as apigateway from "aws-cdk-lib/aws-apigateway"
 import * as s3 from "aws-cdk-lib/aws-s3"
+import * as sqs from "aws-cdk-lib/aws-sqs"
 import * as iam from "aws-cdk-lib/aws-iam"
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs"
 import * as lambda from "aws-cdk-lib/aws-lambda"
@@ -11,6 +12,13 @@ import * as path from "path"
 export class ImportServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props)
+
+    // Get reference to existing SQS queue
+    const catalogItemsQueue = sqs.Queue.fromQueueArn(
+      this,
+      "CatalogItemsQueue",
+      "arn:aws:sqs:${region}:${account}:catalogItemsQueue"
+    )
 
     // Reference existing S3 bucket
     const bucket = s3.Bucket.fromBucketName(
@@ -71,9 +79,13 @@ export class ImportServiceStack extends cdk.Stack {
       environment: {
         BUCKET_NAME: bucket.bucketName,
         REGION: this.region,
+        SQS_QUEUE_URL: catalogItemsQueue.queueUrl,
       },
       timeout: cdk.Duration.seconds(60), // Increase timeout for file processing
     })
+
+    // Grant SQS permissions to Lambda
+    catalogItemsQueue.grantSendMessages(importFileParser);
 
     // Grant S3 permissions to Lambda
     bucket.grantReadWrite(importProductsFile)

@@ -4,6 +4,8 @@ import * as apigateway from "aws-cdk-lib/aws-apigateway"
 import * as lambda from "aws-cdk-lib/aws-lambda"
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb"
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs"
+import * as sqs from "aws-cdk-lib/aws-sqs"
+import * as lambdaEventSources from "aws-cdk-lib/aws-lambda-event-sources"
 
 export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -67,6 +69,41 @@ export class CdkStack extends cdk.Stack {
       }
     )
 
+    // Assuming you already have the queue defined in AWS Console 'CatalogItemsQueue'
+    const catalogItemsQueue = sqs.Queue.fromQueueArn(
+      this,
+      "CatalogItemsQueue",
+      "arn:aws:sqs:${region}:${account}:catalogItemsQueue"
+    )
+
+    // Create the catalogBatchProcess lambda function
+    const catalogBatchProcess = new NodejsFunction(
+      this,
+      "CatalogBatchProcess",
+      {
+        runtime: lambda.Runtime.NODEJS_18_X,
+        handler: "handler",
+        entry: "./src/lambdas/catalogBatchProcess.ts",
+        timeout: cdk.Duration.seconds(30),
+        environment: {
+          PRODUCTS_TABLE: productsTable.tableName,
+          STOCKS_TABLE: stocksTable.tableName,
+        },
+        bundling: {
+          minify: true,
+          sourceMap: true,
+          externalModules: ["aws-sdk"], // AWS SDK is already available in the Lambda runtime
+        },
+      }
+    )
+
+    // Add SQS trigger to Lambda
+    catalogBatchProcess.addEventSource(
+      new lambdaEventSources.SqsEventSource(catalogItemsQueue, {
+        batchSize: 5,
+      })
+    )
+
     // Grant the Lambda functions read access to the DynamoDB tables
     productsTable.grantReadData(getProductsListFunction)
     productsTable.grantReadData(getProductsByIdFunction)
@@ -76,6 +113,12 @@ export class CdkStack extends cdk.Stack {
     // Grant the createProduct function write access to the DynamoDB tables
     productsTable.grantWriteData(createProductFunction)
     stocksTable.grantWriteData(createProductFunction)
+
+    // Grant Lambda permissions to read from SQS
+    catalogItemsQueue.grantConsumeMessages(catalogBatchProcess)
+
+    // Grant Lambda permissions to write to DynamoDB (assuming you're using DynamoDB)
+    productsTable.grantWriteData(catalogBatchProcess)
 
     // Create API Gateway
     const api = new apigateway.RestApi(this, "ProductsApi", {

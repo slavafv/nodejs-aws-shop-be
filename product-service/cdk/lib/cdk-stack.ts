@@ -1,8 +1,8 @@
 import * as cdk from "aws-cdk-lib"
 import { Construct } from "constructs"
 import * as apigateway from "aws-cdk-lib/aws-apigateway"
-import * as sns from 'aws-cdk-lib/aws-sns';
-import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
+import * as sns from "aws-cdk-lib/aws-sns"
+import * as subscriptions from "aws-cdk-lib/aws-sns-subscriptions"
 import * as lambda from "aws-cdk-lib/aws-lambda"
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb"
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs"
@@ -14,14 +14,31 @@ export class CdkStack extends cdk.Stack {
     super(scope, id, props)
 
     // Create SNS Topic
-    const createProductTopic = new sns.Topic(this, 'CreateProductTopic', {
-      displayName: 'Product Creation Notifications'
-    });
+    const createProductTopic = new sns.Topic(this, "CreateProductTopic", {
+      displayName: "Product Creation Notifications",
+    })
 
-     // Add email subscription
-     createProductTopic.addSubscription(
-      new subscriptions.EmailSubscription('s.fomin@softteco.com')
-    );
+    // Add email subscription
+    createProductTopic.addSubscription(
+      new subscriptions.EmailSubscription("s.fomin@softteco.com", {
+        filterPolicy: {
+          price: sns.SubscriptionFilter.numericFilter({
+            greaterThanOrEqualTo: 50,
+          }),
+        },
+        json: false,
+      })
+    )
+    createProductTopic.addSubscription(
+      new subscriptions.EmailSubscription("slavik-28@mail.ru", {
+        filterPolicy: {
+          price: sns.SubscriptionFilter.numericFilter({
+            lessThan: 50,
+          }),
+        },
+        json: false,
+      })
+    )
 
     // Reference existing DynamoDB tables
     const productsTable = dynamodb.Table.fromTableName(
@@ -111,7 +128,7 @@ export class CdkStack extends cdk.Stack {
     )
 
     // Grant Lambda permissions to publish to SNS
-    createProductTopic.grantPublish(catalogBatchProcess);
+    createProductTopic.grantPublish(catalogBatchProcess)
 
     // Add SQS trigger to Lambda
     catalogBatchProcess.addEventSource(

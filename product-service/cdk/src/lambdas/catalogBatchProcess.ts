@@ -75,6 +75,10 @@ export const handler = async (event: SQSEvent, context: Context) => {
           Subject: "New Products Created",
           Message: JSON.stringify(message, null, 2),
           MessageAttributes: {
+            type: {
+              DataType: "String",
+              StringValue: "NEW_PRODUCT",
+            },
             productCount: {
               DataType: "Number",
               StringValue: createdProducts.length.toString(),
@@ -92,13 +96,20 @@ export const handler = async (event: SQSEvent, context: Context) => {
     }
   } catch (error) {
     console.error("Error processing batch:", error)
-    await snsClient.send(
-      new PublishCommand({
-        TopicArn: SNS_TOPIC_ARN,
-        Message: JSON.stringify({ error }),
-        Subject: "Error Creating Products",
-      })
-    )
+    // Only send notification for critical errors, not for validation issues
+    if (!(error instanceof Error && error.message === "Invalid product data structure")) {
+      await snsClient.send(
+        new PublishCommand({
+          TopicArn: SNS_TOPIC_ARN,
+          Message: JSON.stringify({
+            error: error instanceof Error ? error.message : 'Unknown error',
+            timestamp: new Date().toISOString(),
+            type: 'CRITICAL_ERROR'
+          }),
+          Subject: "Critical Error in Product Creation",
+        })
+      )
+    }
     throw error
   }
 }

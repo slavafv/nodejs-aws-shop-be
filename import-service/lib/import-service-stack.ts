@@ -19,9 +19,9 @@ export class ImportServiceStack extends cdk.Stack {
       "CatalogItemsQueue",
       {
         queueArn: `arn:aws:sqs:eu-west-1:920373015839:catalogItemsQueue`,
-        queueName: "catalogItemsQueue"
+        queueName: "catalogItemsQueue",
       }
-    );
+    )
 
     // Reference existing S3 bucket
     const bucket = s3.Bucket.fromBucketName(
@@ -68,6 +68,12 @@ export class ImportServiceStack extends cdk.Stack {
 
     // Using high-level grants instead of explicit permissions
 
+    // Create Dead Letter Queue for failed Lambda executions
+    const deadLetterQueue = new sqs.Queue(this, "ImportFileParserDLQ", {
+      queueName: "import-file-parser-dlq",
+      retentionPeriod: cdk.Duration.minutes(5),
+    })
+
     // Create importFileParser Lambda
     const importFileParser = new NodejsFunction(this, "ImportFileParser", {
       runtime: lambda.Runtime.NODEJS_18_X,
@@ -78,7 +84,10 @@ export class ImportServiceStack extends cdk.Stack {
         REGION: this.region,
         SQS_QUEUE_URL: catalogItemsQueue.queueUrl,
       },
-      timeout: cdk.Duration.seconds(60), // Increase timeout for file processing
+      timeout: cdk.Duration.seconds(60),
+      retryAttempts: 2,
+      deadLetterQueueEnabled: true,
+      deadLetterQueue: deadLetterQueue,
     })
 
     // Grant SQS permissions to Lambda
@@ -89,26 +98,26 @@ export class ImportServiceStack extends cdk.Stack {
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["s3:GetObject", "s3:PutObject"],
-        resources: ["arn:aws:s3:::slava-s3-bucket-1/*"]
+        resources: ["arn:aws:s3:::slava-s3-bucket-1/*"],
       })
-    );
+    )
 
     importFileParser.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
-        resources: ["arn:aws:s3:::slava-s3-bucket-1/*"]
+        resources: ["arn:aws:s3:::slava-s3-bucket-1/*"],
       })
-    );
+    )
 
     // Separate SQS permissions
     importFileParser.addToRolePolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ["sqs:SendMessage"],
-        resources: ["arn:aws:sqs:eu-west-1:920373015839:catalogItemsQueue"]
+        resources: ["arn:aws:sqs:eu-west-1:920373015839:catalogItemsQueue"],
       })
-    );
+    )
 
     // Add S3 notification for uploaded folder
     bucket.addEventNotification(

@@ -19,24 +19,26 @@ export class CdkStack extends cdk.Stack {
     })
 
     // Add email subscription
-    createProductTopic.addSubscription(
-      new subscriptions.EmailSubscription("s.fomin@softteco.com", {
-        filterPolicy: {
-          price: sns.SubscriptionFilter.numericFilter({
-            greaterThanOrEqualTo: 50,
-          }),
-        },
-        json: false,
-      })
-    )
+    // Subscription for high-value products and critical errors
     createProductTopic.addSubscription(
       new subscriptions.EmailSubscription("slavik-28@mail.ru", {
         filterPolicy: {
-          price: sns.SubscriptionFilter.numericFilter({
-            lessThan: 50,
+          type: sns.SubscriptionFilter.stringFilter({
+            allowlist: ['CRITICAL_ERROR', 'HIGH_VALUE_PRODUCT'],
           }),
         },
-        json: false,
+        json: true,
+      })
+    )
+    // Subscription for regular products only (no errors)
+    createProductTopic.addSubscription(
+      new subscriptions.EmailSubscription("s.fomin@softteco.com", {
+        filterPolicy: {
+          type: sns.SubscriptionFilter.stringFilter({
+            allowlist: ['NEW_PRODUCT'],
+          }),
+        },
+        json: true,
       })
     )
 

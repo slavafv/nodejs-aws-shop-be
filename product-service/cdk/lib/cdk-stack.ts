@@ -1,13 +1,46 @@
 import * as cdk from "aws-cdk-lib"
 import { Construct } from "constructs"
 import * as apigateway from "aws-cdk-lib/aws-apigateway"
+import * as sns from "aws-cdk-lib/aws-sns"
+import * as subscriptions from "aws-cdk-lib/aws-sns-subscriptions"
 import * as lambda from "aws-cdk-lib/aws-lambda"
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb"
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs"
+import * as sqs from "aws-cdk-lib/aws-sqs"
+import * as lambdaEventSources from "aws-cdk-lib/aws-lambda-event-sources"
 
 export class CdkStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props)
+
+    // Create SNS Topic
+    const createProductTopic = new sns.Topic(this, "CreateProductTopic", {
+      displayName: "Product Creation Notifications",
+    })
+
+    // Add email subscription
+    // Subscription for high-value products and critical errors
+    createProductTopic.addSubscription(
+      new subscriptions.EmailSubscription("slavik-28@mail.ru", {
+        filterPolicy: {
+          type: sns.SubscriptionFilter.stringFilter({
+            allowlist: ['CRITICAL_ERROR', 'HIGH_VALUE_PRODUCT'],
+          }),
+        },
+        json: true,
+      })
+    )
+    // Subscription for regular products only (no errors)
+    createProductTopic.addSubscription(
+      new subscriptions.EmailSubscription("s.fomin@softteco.com", {
+        filterPolicy: {
+          type: sns.SubscriptionFilter.stringFilter({
+            allowlist: ['NEW_PRODUCT'],
+          }),
+        },
+        json: true,
+      })
+    )
 
     // Reference existing DynamoDB tables
     const productsTable = dynamodb.Table.fromTableName(
@@ -67,6 +100,45 @@ export class CdkStack extends cdk.Stack {
       }
     )
 
+    // Assuming you already have the queue defined in AWS Console 'CatalogItemsQueue'
+    const catalogItemsQueue = sqs.Queue.fromQueueArn(
+      this,
+      "CatalogItemsQueue",
+      "arn:aws:sqs:eu-west-1:920373015839:catalogItemsQueue"
+    )
+
+    // Create the catalogBatchProcess lambda function
+    const catalogBatchProcess = new NodejsFunction(
+      this,
+      "CatalogBatchProcess",
+      {
+        runtime: lambda.Runtime.NODEJS_18_X,
+        handler: "handler",
+        entry: "./src/lambdas/catalogBatchProcess.ts",
+        timeout: cdk.Duration.seconds(30),
+        environment: {
+          PRODUCTS_TABLE: productsTable.tableName,
+          STOCKS_TABLE: stocksTable.tableName,
+          SNS_TOPIC_ARN: createProductTopic.topicArn,
+        },
+        bundling: {
+          minify: true,
+          sourceMap: true,
+          externalModules: ["aws-sdk"], // AWS SDK is already available in the Lambda runtime
+        },
+      }
+    )
+
+    // Grant Lambda permissions to publish to SNS
+    createProductTopic.grantPublish(catalogBatchProcess)
+
+    // Add SQS trigger to Lambda
+    catalogBatchProcess.addEventSource(
+      new lambdaEventSources.SqsEventSource(catalogItemsQueue, {
+        batchSize: 5,
+      })
+    )
+
     // Grant the Lambda functions read access to the DynamoDB tables
     productsTable.grantReadData(getProductsListFunction)
     productsTable.grantReadData(getProductsByIdFunction)
@@ -76,6 +148,13 @@ export class CdkStack extends cdk.Stack {
     // Grant the createProduct function write access to the DynamoDB tables
     productsTable.grantWriteData(createProductFunction)
     stocksTable.grantWriteData(createProductFunction)
+
+    // Grant Lambda permissions to read from SQS
+    catalogItemsQueue.grantConsumeMessages(catalogBatchProcess)
+
+    // Grant Lambda permissions to write to DynamoDB tables
+    productsTable.grantWriteData(catalogBatchProcess)
+    stocksTable.grantWriteData(catalogBatchProcess)
 
     // Create API Gateway
     const api = new apigateway.RestApi(this, "ProductsApi", {

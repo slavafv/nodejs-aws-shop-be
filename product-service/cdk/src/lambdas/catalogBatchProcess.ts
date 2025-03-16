@@ -1,9 +1,10 @@
-// lambda/catalogBatchProcess.ts
 import { SQSEvent, Context } from "aws-lambda"
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb"
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb"
 import { SNSClient, PublishCommand } from "@aws-sdk/client-sns"
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid"
+
+import { validateProductData, ProductData } from "../utils/vaildateProductData"
 
 const dynamoClient = new DynamoDBClient({})
 const docClient = DynamoDBDocumentClient.from(dynamoClient)
@@ -18,17 +19,18 @@ export const handler = async (event: SQSEvent, context: Context) => {
     const createdProducts = []
 
     for (const record of event.Records) {
+      console.log('===>> record:', record)
       if (typeof record.body !== "string") {
         throw new Error("Record body is not a string")
       }
 
-      const productData = JSON.parse(record.body)
+      const productData: ProductData = JSON.parse(record.body)
+      console.log('===>> record.body:', record.body)
+      console.log('===>> productData:', productData)
 
-      if (
-        !productData.title ||
-        typeof productData.price !== "number" ||
-        typeof productData.count !== "number"
-      ) {
+      const invalidData = validateProductData(productData)
+
+      if (invalidData) {
         throw new Error("Invalid product data structure")
       }
 
@@ -40,20 +42,22 @@ export const handler = async (event: SQSEvent, context: Context) => {
           id: productId,
           title: productData.title,
           description: productData.description,
-          price: productData.price,
+          price: Number(productData.price),
         },
       }
 
       await docClient.send(new PutCommand(putParams))
 
       // Create stock in stocks table
-      await docClient.send(new PutCommand({
-        TableName: STOCKS_TABLE,
-        Item: {
-          product_id: productId,
-          count: productData.count
-        }
-      }));
+      await docClient.send(
+        new PutCommand({
+          TableName: STOCKS_TABLE,
+          Item: {
+            product_id: productId,
+            count: productData.count ? Number(productData.count) : 0,
+          },
+        })
+      )
       createdProducts.push(putParams.Item)
     }
 
@@ -88,11 +92,13 @@ export const handler = async (event: SQSEvent, context: Context) => {
     }
   } catch (error) {
     console.error("Error processing batch:", error)
-    await snsClient.send(new PublishCommand({
-      TopicArn: SNS_TOPIC_ARN,
-      Message: JSON.stringify({ error }),
-      Subject: 'Error Creating Products',
-    }));
+    await snsClient.send(
+      new PublishCommand({
+        TopicArn: SNS_TOPIC_ARN,
+        Message: JSON.stringify({ error }),
+        Subject: "Error Creating Products",
+      })
+    )
     throw error
   }
 }

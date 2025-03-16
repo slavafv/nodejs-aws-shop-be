@@ -7,30 +7,12 @@ import {
 } from "@aws-sdk/lib-dynamodb"
 import { v4 as uuidv4 } from "uuid"
 
+import { validateProductData, ProductData } from "../utils/vaildateProductData"
+
 const client = new DynamoDBClient({})
 const dynamoDb = DynamoDBDocumentClient.from(client)
 const productsTable = process.env.PRODUCTS_TABLE
 const stocksTable = process.env.STOCKS_TABLE
-
-const validateProductData = (productData: ProductData) => {
-  return (
-    !productData.title ||
-    !productData.description ||
-    productData.price === undefined ||
-    typeof Number(productData.price) !== "number" ||
-    !(
-      productData.count === undefined ||
-      typeof Number(productData.price) === "number"
-    )
-  )
-}
-
-interface ProductData {
-  title: string
-  description: string
-  price: number
-  count: number
-}
 
 export const createProduct = async (
   event: APIGatewayProxyEvent

@@ -16,6 +16,11 @@ export const handler = async (event: S3Event) => {
       const bucket = record.s3.bucket.name;
       const key = decodeURIComponent(record.s3.object.key.replace(/\+/g, ' '));
 
+      if (!key.startsWith('uploaded/')) {
+        console.log('Skipping file not in uploaded folder', { key });
+        continue;
+      }
+
       console.log(`Processing file: ${key} from bucket: ${bucket}`);
 
       // Get the file from S3
@@ -27,6 +32,7 @@ export const handler = async (event: S3Event) => {
       );
 
       if (Body instanceof Readable) {
+        const records: any[] = [];
         // Process the CSV file
         await new Promise((resolve, reject) => {
           Body.pipe(csvParser())

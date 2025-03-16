@@ -13,12 +13,15 @@ export class ImportServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props)
 
-    // Get reference to existing SQS queue
-    const catalogItemsQueue = sqs.Queue.fromQueueArn(
+    // Get reference to existing SQS queue using specific account and region values
+    const catalogItemsQueue = sqs.Queue.fromQueueAttributes(
       this,
       "CatalogItemsQueue",
-      "arn:aws:sqs:${region}:${account}:catalogItemsQueue"
-    )
+      {
+        queueArn: `arn:aws:sqs:eu-west-1:920373015839:catalogItemsQueue`,
+        queueName: "catalogItemsQueue"
+      }
+    );
 
     // Reference existing S3 bucket
     const bucket = s3.Bucket.fromBucketName(
@@ -63,13 +66,7 @@ export class ImportServiceStack extends cdk.Stack {
       },
     })
 
-    // Add explicit S3 permissions
-    importProductsFile.addToRolePolicy(
-      new iam.PolicyStatement({
-        actions: ["s3:PutObject", "s3:GetObject"],
-        resources: [`${bucket.bucketArn}/*`, bucket.bucketArn],
-      })
-    )
+    // Using high-level grants instead of explicit permissions
 
     // Create importFileParser Lambda
     const importFileParser = new NodejsFunction(this, "ImportFileParser", {
@@ -85,12 +82,33 @@ export class ImportServiceStack extends cdk.Stack {
     })
 
     // Grant SQS permissions to Lambda
-    catalogItemsQueue.grantSendMessages(importFileParser);
+    // catalogItemsQueue.grantSendMessages(importFileParser)
 
-    // Grant S3 permissions to Lambda
-    bucket.grantReadWrite(importProductsFile)
-    bucket.grantReadWrite(importFileParser)
-    bucket.grantDelete(importFileParser)
+    // Add combined permissions in single policy statements
+    importProductsFile.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["s3:GetObject", "s3:PutObject"],
+        resources: ["arn:aws:s3:::slava-s3-bucket-1/*"]
+      })
+    );
+
+    importFileParser.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+        resources: ["arn:aws:s3:::slava-s3-bucket-1/*"]
+      })
+    );
+
+    // Separate SQS permissions
+    importFileParser.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["sqs:SendMessage"],
+        resources: ["arn:aws:sqs:eu-west-1:920373015839:catalogItemsQueue"]
+      })
+    );
 
     // Add S3 notification for uploaded folder
     bucket.addEventNotification(

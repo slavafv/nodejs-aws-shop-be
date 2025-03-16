@@ -85,7 +85,7 @@ export class CdkStack extends cdk.Stack {
     const catalogItemsQueue = sqs.Queue.fromQueueArn(
       this,
       "CatalogItemsQueue",
-      "arn:aws:sqs:${region}:${account}:catalogItemsQueue"
+      "arn:aws:sqs:eu-west-1:920373015839:catalogItemsQueue"
     )
 
     // Create the catalogBatchProcess lambda function
@@ -133,8 +133,9 @@ export class CdkStack extends cdk.Stack {
     // Grant Lambda permissions to read from SQS
     catalogItemsQueue.grantConsumeMessages(catalogBatchProcess)
 
-    // Grant Lambda permissions to write to DynamoDB (assuming you're using DynamoDB)
+    // Grant Lambda permissions to write to DynamoDB tables
     productsTable.grantWriteData(catalogBatchProcess)
+    stocksTable.grantWriteData(catalogBatchProcess)
 
     // Create API Gateway
     const api = new apigateway.RestApi(this, "ProductsApi", {

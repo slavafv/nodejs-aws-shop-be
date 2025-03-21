@@ -13,6 +13,20 @@ export class ImportServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props)
 
+    // // Reference the existing authorizer Lambda by ARN
+    // const basicAuthorizerFn = lambda.Function.fromFunctionArn(
+    //   this,
+    //   'BasicAuthorizer',
+    //   `arn:aws:lambda:${REGION}:${ACCOUNT_ID}:function:AuthorizationServiceStack-BasicAuthorizer2B49C1FC-0xOTdkGW14rg`,
+    // );
+
+    // Get the authorizer lambda from cross-stack reference
+    const authorizerFn = lambda.Function.fromFunctionArn(
+      this,
+      "ImportAuthorizerFn",
+      cdk.Fn.importValue("BasicAuthorizerArn")
+    )
+
     // Get reference to existing SQS queue using specific account and region values
     const catalogItemsQueue = sqs.Queue.fromQueueAttributes(
       this,
@@ -128,11 +142,27 @@ export class ImportServiceStack extends cdk.Stack {
 
     // Create API Gateway
     const api = new apigateway.RestApi(this, "ImportApi", {
+      restApiName: "Import Service",
+      description: "Import Service API",
       defaultCorsPreflightOptions: {
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
         allowMethods: apigateway.Cors.ALL_METHODS,
       },
     })
+
+    // Create authorizer
+    const authorizer = new apigateway.TokenAuthorizer(
+      this,
+      "ImportAuthorizer",
+      {
+        handler: authorizerFn,
+        identitySource: apigateway.IdentitySource.header("Authorization"),
+        resultsCacheTtl: cdk.Duration.seconds(0), // Disable cache during development
+      }
+    )
+
+    // Add resource
+    const importResource = api.root.addResource("import")
 
     // Create API Gateway integration
     const integration = new apigateway.LambdaIntegration(importProductsFile, {
@@ -147,9 +177,10 @@ export class ImportServiceStack extends cdk.Stack {
       ],
     })
 
-    // Add resource and method
-    const importResource = api.root.addResource("import")
+    // Add GET method with authorizer
     importResource.addMethod("GET", integration, {
+      authorizer: authorizer,
+      authorizationType: apigateway.AuthorizationType.CUSTOM,
       requestParameters: {
         "method.request.querystring.name": true,
       },
@@ -160,6 +191,18 @@ export class ImportServiceStack extends cdk.Stack {
             "method.response.header.Access-Control-Allow-Origin": true,
             "method.response.header.Access-Control-Allow-Headers": true,
             "method.response.header.Access-Control-Allow-Methods": true,
+          },
+        },
+        { 
+          statusCode: '401',
+          responseParameters: {
+            'method.response.header.Access-Control-Allow-Origin': true,
+          },
+        },
+        { 
+          statusCode: '403',
+          responseParameters: {
+            'method.response.header.Access-Control-Allow-Origin': true,
           },
         },
       ],

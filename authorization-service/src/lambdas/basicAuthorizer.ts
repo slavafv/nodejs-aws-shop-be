@@ -23,6 +23,7 @@ export const handler = async (event: APIGatewayTokenAuthorizerEvent): Promise<AP
 
     // Get credentials from environment variables
     const storedCredentials = process.env.CREDENTIALS || '';
+    console.log('===>> storedCredentials:', storedCredentials)
     const credentialsMap = parseCredentials(storedCredentials);
 
     if (!isAuthorized(username, password, credentialsMap)) {

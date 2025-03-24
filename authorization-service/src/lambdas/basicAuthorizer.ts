@@ -2,12 +2,13 @@ import { APIGatewayTokenAuthorizerEvent, APIGatewayAuthorizerResult } from 'aws-
 
 export const handler = async (event: APIGatewayTokenAuthorizerEvent): Promise<APIGatewayAuthorizerResult> => {
   console.log('Event:', JSON.stringify(event));
-
-  if (!event.authorizationToken) {
-    throw new Error('Unauthorized'); // Will return 401
-  }
+  let encodedCreds
 
   try {
+    if (!event.authorizationToken) {
+      throw new Error('Unauthorized'); // Will return 401
+    }
+  
     const authorizationToken = event.authorizationToken;
     
     if (!authorizationToken.toLowerCase().startsWith('basic ')) {
@@ -15,14 +16,14 @@ export const handler = async (event: APIGatewayTokenAuthorizerEvent): Promise<AP
     }
 
     // Remove 'Basic ' from the token and decode
-    const encodedCreds = authorizationToken.split(' ')[1];
+    encodedCreds = authorizationToken.split(' ')[1];
     const buff = Buffer.from(encodedCreds, 'base64');
     const [username, password] = buff.toString('utf-8').split(':');
 
     console.log(`Username: ${username}`);
 
     // Get credentials from environment variables
-    const storedCredentials = process.env.CREDENTIALS || '';
+    const storedCredentials = process.env.CREDENTIALS ?? '';
     console.log('===>> storedCredentials:', storedCredentials)
     const credentialsMap = parseCredentials(storedCredentials);
 
@@ -33,9 +34,7 @@ export const handler = async (event: APIGatewayTokenAuthorizerEvent): Promise<AP
     return generatePolicy(encodedCreds, event.methodArn, 'Allow');
   } catch (error) {
     console.log('Error:', error);
-    throw error instanceof Error && error.message === 'Unauthorized' 
-      ? new Error('Unauthorized') 
-      : new Error('Forbidden');
+    return generatePolicy(encodedCreds ?? 'Unknown_user', event.methodArn, 'Deny');
   }
 };
 
@@ -58,7 +57,7 @@ const isAuthorized = (
   credentialsMap: Map<string, string>
 ): boolean => {
   const storedPassword = credentialsMap.get(username);
-  return storedPassword === password;
+  return !!storedPassword && !!password && storedPassword === password;
 };
 
 const generatePolicy = (

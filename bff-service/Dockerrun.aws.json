@@ -9,7 +9,5 @@
       "ContainerPort": 3000,
       "HostPort": 80
     }
-  ],
-  "Volumes": [],
-  "Logging": "/var/log/nginx"
+  ]
 }

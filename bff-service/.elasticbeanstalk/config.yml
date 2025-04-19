@@ -1,11 +1,13 @@
 branch-defaults:
   default:
-    environment: slavafv-bff-service-dev
+    environment: null
     group_suffix: null
-deploy:
-  artifact: Dockerrun.aws.json
+environment-defaults:
+  slavafv-bff-service-dev:
+    branch: null
+    repository: null
 global:
-  application_name: slavafv-bff-api
+  application_name: slavafv-bff-api-2
   branch: null
   default_ec2_keyname: null
   default_platform: Docker

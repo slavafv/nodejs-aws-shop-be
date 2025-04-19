@@ -1,22 +1,8 @@
 branch-defaults:
   default:
-    environment: null
-    group_suffix: null
-environment-defaults:
-  slavafv-bff-service-dev:
-    branch: null
-    repository: null
+    environment: slavafv-bff-service-dev
 global:
-  application_name: slavafv-bff-api-2
-  branch: null
-  default_ec2_keyname: null
-  default_platform: Docker
+  application_name: slavafv-bff-api
+  default_platform: Docker running on 64bit Amazon Linux 2023
   default_region: eu-west-1
-  include_git_submodules: true
-  instance_profile: null
-  platform_name: null
-  platform_version: null
-  profile: null
-  repository: null
-  sc: null
   workspace_type: Application

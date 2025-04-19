@@ -29,9 +29,17 @@ app.all('/*name', (req, res) => {
   console.log('recipientURL:', recipientURL);
 
   if (recipientURL) {
+    const recipientPath = req.originalUrl.replace('/' + recipient, '')
+
     const axiosConfig = {
       method: req.method,
-      url: `${recipientURL}${req.originalUrl}`,
+      url: `${recipientURL}${recipientPath ? "/"+recipientPath : ''}`,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(req.headers.authorization && {
+          'Authorization': req.headers.authorization
+        })
+      },
       ...(Object.keys(req.body || {}).length > 0 && { data: req.body })
     };
 

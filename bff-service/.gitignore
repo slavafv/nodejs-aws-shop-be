@@ -8,3 +8,6 @@ cdk.out
 
 .env
 dist
+
+.elasticbeanstalk/*
+!.elasticbeanstalk/config.yml

@@ -4,14 +4,15 @@
   "main": "src/index.js",
   "scripts": {
     "app-dev": "nodemon index.js",
-    "app-dev-1": "nodemon ./test-api/api-1.js",
-    "app-dev-2": "nodemon ./test-api/api-2.js",
-    "eb-init": "eb init --platform node.js --region eu-west-1",
-    "eb-create": "eb create development --single --cname shuspes-bff-develop",
+    "eb-init": "eb init slavafv-bff-api --platform \"Node.js 22\" --region eu-west-1",
+    "eb-create": "eb create development --single --cname slavafv-bff-api",
     "eb-terminate": "eb terminate",
     "start": "node index.js",
     "start-modifier": "node index-response-modifier.js",
     "set-env": "eb setenv `cat .env.eb | sed '/^#/ d' | sed '/^$/ d'`"
+  },
+  "engines": {
+    "node": "22.x"
   },
   "keywords": [],
   "author": "",
@@ -27,3 +28,5 @@
     "nodemon": "^3.0.1"
   }
 }
+
+

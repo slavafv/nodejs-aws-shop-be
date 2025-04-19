@@ -6,7 +6,7 @@ global:
   application_name: sfomin-bff-api
   branch: null
   default_ec2_keyname: null
-  default_platform: Node.js 18
+  default_platform: Docker
   default_region: eu-west-1
   include_git_submodules: true
   instance_profile: null

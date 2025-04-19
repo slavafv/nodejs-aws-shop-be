@@ -18,7 +18,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-app.all('/*', (req, res) => {
+app.all('/*name', (req, res) => {
   console.log('originalUrl', req.originalUrl);
   console.log('method', req.method);
   console.log('body', req.body);

@@ -1,7 +1,7 @@
-const express = require('express');
-const axios = require('axios').default;
-const cors = require('cors');
-const dotenv = require('dotenv');
+import express, { Request, Response } from 'express';
+import cors from 'cors';
+import axios from 'axios';
+import dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
@@ -18,7 +18,14 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-app.all('/*name', (req, res) => {
+app.get('/health', (_req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.all('/*name', (req: Request, res: Response) => {
   console.log('originalUrl', req.originalUrl);
   console.log('method', req.method);
   console.log('body', req.body);

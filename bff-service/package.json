@@ -1,0 +1,31 @@
+{
+  "name": "bff-service",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "nodemon",
+    "build": "tsc",
+    "docker-build": "docker build -t slavafv-bff-api .",
+    "docker-run": "docker run -p 3000:3000 slavafv-bff-api",
+    "eb-init": "eb init slavafv-bff-api --platform \"Node.js 18\" --region eu-west-1",
+    "eb-create": "eb create development --single --cname slavafv-bff-api",
+    "eb-terminate": "eb terminate",
+    "set-env": "eb setenv `cat .env.eb | sed '/^#/ d' | sed '/^$/ d'`"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "fastify": "^4.x.x",
+    "@fastify/cors": "^8.x.x",
+    "axios": "^1.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "nodemon": "^3.0.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}

@@ -1,80 +1,103 @@
-import express, { Request, Response } from 'express';
-import cors from 'cors';
-import axios from 'axios';
+import fastify from 'fastify';
+import fastifyCors from '@fastify/cors';
+import axios, { AxiosError } from 'axios';
 import dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
 
-const app = express();
-const PORT = process.env.PORT || 3000
+const app = fastify();
+const PORT = process.env.PORT || 3000;
 
-const corsOptions = {
+// Register CORS plugin
+app.register(fastifyCors, {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
-};
+});
 
-app.use(cors(corsOptions));
-app.use(express.json());
-
-app.get('/health', (_req: Request, res: Response) => {
-  res.status(200).json({
+// Health check endpoint
+app.get('/health', async (request, reply) => {
+  return {
     status: 'healthy',
     timestamp: new Date().toISOString()
-  });
+  };
 });
 
-app.all('/*name', (req: Request, res: Response) => {
-  console.log('originalUrl', req.originalUrl);
-  console.log('method', req.method);
-  console.log('body', req.body);
-  const recipient = req.originalUrl.split('/')[1];
-  console.log('recipient:', recipient);
+// Catch-all route handler
+app.route({
+  method: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  url: '/*',
+  handler: async (request, reply) => {
+    const originalUrl = request.url;
+    console.log('originalUrl', originalUrl);
+    console.log('method', request.method);
+    console.log('body', request.body);
+    
+    // Skip the health endpoint
+    if (originalUrl === '/health') {
+      return;
+    }
+    
+    const recipient = originalUrl.split('/')[1];
+    console.log('recipient:', recipient);
 
-  const recipientURL = process.env[recipient];
-  console.log('recipientURL:', recipientURL);
+    const recipientURL = process.env[recipient];
+    console.log('recipientURL:', recipientURL);
 
-  if (recipientURL) {
-    const recipientPath = req.originalUrl.replace('/' + recipient, '')
+    if (recipientURL) {
+      const recipientPath = originalUrl.replace('/' + recipient, '');
 
-    const axiosConfig = {
-      method: req.method,
-      url: `${recipientURL}${recipientPath ? "/"+recipientPath : ''}`,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(req.headers.authorization && {
-          'Authorization': req.headers.authorization
-        })
-      },
-      ...(Object.keys(req.body || {}).length > 0 && { data: req.body })
-    };
+      const axiosConfig = {
+        method: request.method,
+        url: `${recipientURL}${recipientPath ? "/" + recipientPath : ''}`,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(request.headers.authorization && {
+            'Authorization': request.headers.authorization
+          })
+        },
+        ...(request.body && Object.keys(request.body).length > 0 && { data: request.body } || {})
+      };
 
-    console.log('axiosConfig:', axiosConfig);
+      console.log('axiosConfig:', axiosConfig);
 
-    axios(axiosConfig)
-      .then(function (response) {
+      try {
+        const response = await axios(axiosConfig);
         console.log('response from recipient', response.data);
-        res.json(response.data);
-      })
-      .catch(error => {
-        console.log('some error:', JSON.stringify(error));
-        if (error.response) {
-          const {
-            status,
-            data
-          } = error.response;
-          res.status(status).json(data);
-        } else {
-          res.status(502).json({ error: error.message });
+        return response.data;
+      } catch (error) {
+        if (error instanceof Error) {
+          // Handle general Error instances
+          if (axios.isAxiosError(error)) {
+            // Handle Axios specific errors
+            const axiosError = error as AxiosError;
+            if (axiosError.response) {
+              const { status, data } = axiosError.response;
+              return reply.code(status).send(data);
+            }
+          }
+          // Handle any Error instance
+          return reply.code(502).send({ error: error.message });
         }
-      });
-  } else {
-    res.status(502).json({ error: 'Cannot process request' });
+        // Handle unknown error types
+        return reply.code(502).send({ error: 'An unknown error occurred' });
+      }
+    } else {
+      return reply.code(502).send({ error: 'Cannot process request' });
+    }
   }
-
 });
 
-app.listen(PORT, () => {
-  console.log(`bff-service listening on port ${PORT}`);
-})
+// Start the server
+const start = async () => {
+  try {
+    await app.listen({ port: Number(PORT), host: '0.0.0.0' });
+    console.log(`bff-service listening on port ${PORT}`);
+  } catch (err) {
+    console.error(err);
+    process.exit(1);
+  }
+};
+
+start();
